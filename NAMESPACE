@@ -1,0 +1,5 @@
+importFrom("stats", "quantile", "residuals", "rnorm", "rpois", "runif", "pnorm", "rexp")
+importFrom("utils", "data")
+useDynLib(wastee)
+exportPattern("^[[:alpha:]]+")
+export(exams, pval_mixexp, pval_mixnorm, pval_mixpoiss, pval_probit, pval_quantile, pval_semiparam)
