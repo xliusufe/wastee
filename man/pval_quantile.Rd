@@ -40,6 +40,11 @@
   Q_{Y_i}(\tau|\boldsymbol{X}_i,\boldsymbol{Z}_i, \boldsymbol{U}_i) 
   = \boldsymbol{X}_i^T\boldsymbol{\alpha}(\tau)+\boldsymbol{Z}_i^T\boldsymbol{\beta}(\tau)\boldsymbol{ 1}(\boldsymbol{U}_i^T\boldsymbol{\theta}(\tau)\geq0).
   }
+
+The hypothesis test problem is 
+\deqn{
+  H_0: \boldsymbol{\beta}=\boldsymbol{0}\quad versus\quad H_1: \boldsymbol{\beta}\neq \boldsymbol{0}.
+}
 }
 
 \references{

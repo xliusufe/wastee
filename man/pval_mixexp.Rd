@@ -23,7 +23,7 @@
 
   \item{lambda}{The rate parameter of weight that is a Exponential distribution.}
 
-  \item{alpha}{Rate parameter of Exponential distribution under the null. Default is \code{NULL}, in which the rate parameter \eqn{\alpha} is eatimeted by the reciprocal of sample mean, 
+  \item{alpha}{Rate parameter of Exponential distribution under the null. Default is \code{NULL}, in which the rate parameter \eqn{\alpha} is estimated by the reciprocal of sample mean, 
       that is \eqn{\hat{\alpha}=\frac{1}{\bar{y}}}.}
 }
 
@@ -37,6 +37,11 @@
   f(y) = (1-\beta)\alpha\exp(-\alpha y) + \beta\theta\exp(-\theta y),
   }
   where \eqn{\beta\in[0,1]},  \eqn{\alpha\in\boldsymbol{R}} and \eqn{\theta\in\boldsymbol{R}} are unknown parameters.
+
+The hypothesis test problem is 
+\deqn{
+  H_0: \beta=0 \quad versus\quad H_1: \beta \neq 0.
+}
 }
 
 \references{

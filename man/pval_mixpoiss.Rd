@@ -26,7 +26,7 @@
 
   \item{tau}{The shape parameter \eqn{\tau} of weight that is a Gamma distribution.}
 
-  \item{alpha}{Mean under the null. Default is \code{NULL}, in which the mean \eqn{\alpha} is eatimeted by the sample mean.}
+  \item{alpha}{Mean under the null. Default is \code{NULL}, in which the mean \eqn{\alpha} is estimated by the sample mean.}
 }
 
 \value{
@@ -39,6 +39,11 @@
   f(y) = (1-\beta)\frac{\alpha^{y}\exp(-\alpha)}{y!} + \beta\frac{\theta^{y}\exp(-\theta)}{y!},
   }
   where \eqn{\beta\in[0,1]},  \eqn{\alpha\in\boldsymbol{R}} and \eqn{\theta\in\boldsymbol{R}} are unknown parameters.
+
+The hypothesis test problem is 
+\deqn{
+  H_0: \beta=0 \quad versus\quad H_1: \beta \neq 0.
+}
 }
 
 \references{

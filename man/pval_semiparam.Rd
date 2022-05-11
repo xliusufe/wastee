@@ -38,9 +38,14 @@
   Y_i = h(\boldsymbol{X}_{1i}) +A_i\boldsymbol{Z}_i^T\boldsymbol{\beta} \boldsymbol{1}(\boldsymbol{U}_i^T \boldsymbol{\theta}\geq0)+\epsilon_i,
   }
 where \eqn{h(\boldsymbol{X}_1)} is an unknown baseline mean function for patients in treatment \eqn{A=0} which can be set a linear function \eqn{h(\boldsymbol{X}_1)  = X_1^T\boldsymbol{\alpha}_1}, 
-and \eqn{P(A=1|\boldsymbol{X}_2)} can be modeled by a logistic regression model 
+and \eqn{P(A=1|\boldsymbol{X}_2)} can be modelled by a logistic regression model 
 \deqn{
 P(A=1|\boldsymbol{X}_2)=\pi(\boldsymbol{X}_2, \boldsymbol{\alpha}_2)=\frac{\exp\{\boldsymbol{X}_2^T\boldsymbol{\alpha}_2\}}{1+\exp\{\boldsymbol{X}_2^T\boldsymbol{\alpha}_2\}}.
+}
+
+The hypothesis test problem is 
+\deqn{
+  H_0: \boldsymbol{\beta}=\boldsymbol{0}\quad versus\quad H_1: \boldsymbol{\beta}\neq \boldsymbol{0}.
 }
 }
 
