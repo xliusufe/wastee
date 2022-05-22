@@ -300,6 +300,47 @@ EstTn_quantile0 <- function(data, tau = 0.5, isBeta = 0, shape1 = 1, shape2 = 1,
 	return(p_value)
 }
 
+EstTn_quantile_slrt <- function(data, tau = 0.5, K = 20000L, M=1000L, h = NULL) {
+	if(tau*(1-tau)<=0)	stop('tau is out of range!')
+	y 		= data$Y
+	n 		= length(y)
+	tx 		= data$X
+	x 		= data$Z
+	z 		= data$U
+	p1 		= ifelse(is.null(ncol(tx)) , 1, ncol(tx))
+	p2 		= ifelse(is.null(ncol(x)) , 1, ncol(x))
+	p3 		= ifelse(is.null(ncol(z)) , 1, ncol(z))
+
+	h 		= ifelse(is.null(ncol(h)) , 2.0*n^(1/5), h)
+	maxIter = 50
+	tol 	= 0.00001
+
+	if(p3==1){
+		z1 		= quantile(z, probs = c(0.1, 0.9))
+		rtheta 	= z[(z>z1[1]) & (z<z1[2])]
+		K 		= length(rtheta)
+	}
+	else{
+		rtheta = gam.init(K, p3-1, z[,-1], lb.quantile=.1, ub.quantile=0.9, ss=1)
+		rtheta = t(rtheta)
+	}
+	wb  	= matrix(rnorm(M*n), nrow = n, ncol = M)
+	G 		= wb
+	dims 	= c(n, p1, p2, p3, K, M, maxIter)
+	params 	= c(tau, tol, h)
+	fit 	<- .Call("_Quantile_SLR",
+					as.numeric(y),
+					as.numeric(tx),
+					as.numeric(x),
+					as.numeric(z),
+					as.numeric(rtheta),
+					as.numeric(G),
+					as.integer(dims),
+					as.numeric(params))
+	pvals 	= fit$pvals[1]
+	return(pvals)
+}
+
 pval_probit <- function(data, method = "wast", M = 1000, K = 2000, isBeta = FALSE, shape1 = 1, shape2 = 1){
 	if(shape1<0 || shape2<0) 
 		stop("Two parameters of Beta distribution must not be negative!")
@@ -342,8 +383,11 @@ pval_quantile <- function(data, method = "wast", tau = 0.5, M = 1000, K = 2000, 
 	else if(method=='wast'){
 	   pvals  	= EstTn_quantile0(data, tau = tau, isBeta = isBeta, shape1 = shape1, shape2 = shape2, K = K, M=M)
 	}
+	else if(method=='slrt'){
+	   pvals  	= EstTn_quantile_slrt(data, tau = tau, K = K, M = M, h = NULL)
+	}
 	else{
-		stop("Method must be one of {'wast' and 'sst'} !")
+		stop("Method must be one of {'wast', 'sst' and slrt} !")
 	}
 
 	return(pvals)

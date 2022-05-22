@@ -1551,6 +1551,371 @@ SEXP _EST_QR(SEXP Y_, SEXP X_, SEXP PARA_INT_, SEXP PARA_DOUBLE_)
 }
 
 
+//-------------- SLR of quantile regression --------------------------------
+double EstQR0(double *x, double *y, double *beta, double *residual, double *hess, double qq, int n, int p, int maxstep, double eps){
+	int i,j,k, step=0;
+	double *beta0, *qy, *dpsi;
+	double tmp, bnorm, q2 = 2*qq-1, yk, wk, loglokl=0.0;
+
+	beta0 	= (double*)malloc(sizeof(double)*p);
+	qy 		= (double*)malloc(sizeof(double)*p);
+	dpsi 	= (double*)malloc(sizeof(double)*n*p);
+
+	SampleQuantile(&yk, 1, y, n, &qq);
+	for(j=0;j<p;j++)	beta0[j] 	= 0.0;
+	for(i=0;i<n;i++)	residual[i]	= y[i] - yk;
+
+	while (step < maxstep){
+		step++;
+
+		for(j=0;j<p;j++) qy[j] = 0.0;
+		for(i=0;i<n;i++){
+			wk = EPS + fabs(residual[i]);
+			yk = y[i] + wk*q2;
+			for(j=0;j<p;j++){
+				tmp 	= x[j*n+i]/wk;
+				qy[j] 	+= tmp*yk;
+				dpsi[j*n+i] = tmp;
+			}
+		}
+		for(j=0; j < p; j++){
+			for(k=0; k < p; k++){
+				tmp = 0.0;
+				for(i=0; i<n; i++){
+					tmp += x[j*n+i]*dpsi[k*n+i];
+				}
+				hess[j*p+k] = tmp;
+			}
+		}
+		MatrixInvSymmetric(hess,p);
+    	AbyB(beta, hess, qy, p, p, 1);
+
+		bnorm = 0.0;
+		for(j=0;j<p;j++){
+			tmp = beta[j] - beta0[j];
+			bnorm += tmp*tmp;
+		}
+
+		if(sqrt(bnorm)<eps){
+			break;
+		}
+		else{
+			for(j=0;j<p;j++)	beta0[j] = beta[j];
+			for(i=0;i<n;i++){
+				tmp = 0.0;
+				for(j=0;j<p;j++) tmp += x[j*n+i]*beta[j];
+				residual[i] = y[i] - tmp;
+				loglokl += (qq - IDEX(residual[i], 0.0))*residual[i];
+			}
+		}
+	}
+
+	for(j=0; j < p; j++){
+		for(k=0; k < p; k++){
+			tmp = 0.0;
+			for(i=0; i<n; i++){
+				tmp += x[j*n+i]*x[k*n+i];
+			}
+			hess[j*p+k] = qq*(1.0-qq)*tmp;
+		}
+	}
+	MatrixInvSymmetric(hess,p);
+
+	free(beta0);
+	free(dpsi);
+	free(qy);
+	return -2.0*loglokl;
+}
+
+double EstQR1(double *x, double *y, double *beta, double *hess, double qq, int n, int p, int maxstep, double eps){
+	int i,j,k, step=0;
+	double *beta0, *qy, *dpsi, *residual, loglokl=0.0;
+	double tmp, bnorm, q2 = 2*qq-1, yk, wk;
+
+	beta0 	= (double*)malloc(sizeof(double)*p);
+	qy 		= (double*)malloc(sizeof(double)*p);
+	residual= (double*)malloc(sizeof(double)*n);
+	dpsi 	= (double*)malloc(sizeof(double)*n*p);
+
+	SampleQuantile(&yk, 1, y, n, &qq);
+	for(j=0;j<p;j++)	beta0[j] 	= 0.0;
+	for(i=0;i<n;i++)	residual[i]	= y[i] - yk;
+
+	while (step < maxstep){
+		step++;
+
+		for(j=0;j<p;j++) qy[j] = 0.0;
+		for(i=0;i<n;i++){
+			wk = EPS + fabs(residual[i]);
+			yk = y[i] + wk*q2;
+			for(j=0;j<p;j++){
+				tmp 	= x[j*n+i]/wk;
+				qy[j] 	+= tmp*yk;
+				dpsi[j*n+i] = tmp;
+			}
+		}
+		for(j=0; j < p; j++){
+			for(k=0; k < p; k++){
+				tmp = 0.0;
+				for(i=0; i<n; i++){
+					tmp += x[j*n+i]*dpsi[k*n+i];
+				}
+				hess[j*p+k] = tmp;
+			}
+		}
+		MatrixInvSymmetric(hess,p);
+    	AbyB(beta, hess, qy, p, p, 1);
+
+		bnorm = 0.0;
+		for(j=0;j<p;j++){
+			tmp = beta[j] - beta0[j];
+			bnorm += tmp*tmp;
+		}
+
+		if(sqrt(bnorm)<eps){
+			break;
+		}
+		else{
+			for(j=0;j<p;j++)	beta0[j] = beta[j];
+			for(i=0;i<n;i++){
+				tmp = 0.0;
+				for(j=0;j<p;j++) tmp += x[j*n+i]*beta[j];
+				residual[i] = y[i] - tmp;
+				loglokl += (qq - IDEX(residual[i], 0.0))*residual[i];
+			}
+		}
+	}
+
+	free(beta0);
+	free(dpsi);
+	free(residual);
+	free(qy);
+	return -2.0*loglokl;
+}
+
+void Quantile_SLR(double *pvals, double *y, double *tx, double *x, double *z, double tau, double *theta, double* G, double *thetahat,
+		int n, int p, int p2, int p3, int K, int M, int maxstep, double tol){
+	int i,j,k,s,t,p11=p+p2,*subg,sumsb=0,count=0,maxk=0;
+	double tmp1, loglokl0, loglokl1, Tn0, tau2 = sqrt(tau*(1-tau));
+	double *psi0, *psi1, *psi2, *psin, *C11, *alpha0, *weight, *Tns, *I0, *In, *resids;
+
+	subg	= (int*)malloc(sizeof(int)*n);
+	alpha0 	= (double*)malloc(sizeof(double)*p11);
+	weight 	= (double*)malloc(sizeof(double)*n);
+	resids  = (double*)malloc(sizeof(double)*n);
+	Tns		= (double*)malloc(sizeof(double)*M);
+	psi0 	= (double*)malloc(sizeof(double)*n*p11);
+	psi1 	= (double*)malloc(sizeof(double)*n*p11);
+	psi2 	= (double*)malloc(sizeof(double)*n*p11);
+	psin 	= (double*)malloc(sizeof(double)*p11);
+	C11 	= (double*)malloc(sizeof(double)*p11*p11);
+	I0		= (double*)malloc(sizeof(double)*p*p);
+	In 		= (double*)malloc(sizeof(double)*p11*p11);
+
+	loglokl0 = EstQR0(tx, y, alpha0, resids, I0, tau, n, p, maxstep, tol);
+	for(i=0; i<n; i++){
+		resids[i] = IDEX(resids[i], 0.0) - tau;
+	}
+
+	for(j=0; j<p; j++){
+		for(i=0; i<n; i++){
+			psi0[j*n+i]	= tx[j*n+i]*resids[i];
+			psi1[j*n+i]	= tx[j*n+i]*tau2;
+			psi2[j*n+i]	= tx[j*n+i];
+		}
+	}
+
+	for(j=0; j< M; j++){
+		Tns[j]	= 0.0;
+	}
+	loglokl1 = -1000000.0;
+	Tn0 = -1000000.0;
+	for(k=0; k<K; k++){
+		sumsb 	= 0;
+		if(p3==1){
+			for(i=0; i<n; i++){
+				subg[i] = IDEX(theta[k], z[i]);
+				sumsb += subg[i];
+			}
+		}
+		else{
+			for(i=0; i<n; i++){
+				tmp1 = 0.0;
+				for (s = 0; s < p3; s++){
+					tmp1 += z[s*n+i]*theta[k*p3 + s];
+				}
+				subg[i] = IDEX(0.0, tmp1);
+				sumsb += subg[i];
+			}
+		}
+
+		if (sumsb>0){
+			for(i=0; i<n; i++){
+				if(subg[i]){
+					for(j=0; j<p2; j++){
+						psi2[(j+p)*n+i]	= x[j*n+i];
+					}
+				}
+				else{
+					for(j=0; j<p2; j++){
+						psi2[(j+p)*n+i]	= 0.0;
+					}
+				}
+			}
+
+			tmp1 = EstQR1(psi2, y, alpha0, C11, tau, n, p11, maxstep, tol);
+			if(tmp1 > loglokl1){
+				loglokl1 = tmp1;
+			}
+
+			for(i=0; i<n; i++){
+				if(subg[i]){
+					for(j=0; j<p2; j++){
+						psi0[(j+p)*n+i]	= x[j*n+i]*resids[i];
+						psi1[(j+p)*n+i]	= tau2*x[j*n+i];
+					}
+				}
+				else{
+					for(j=0; j<p2; j++){
+						psi0[(j+p)*n+i]	= 0.0;
+						psi1[(j+p)*n+i]	= 0.0;
+					}
+				}
+			}
+
+			for (s = 0; s < p11; s++){
+				for (t = s; t < p11; t++){
+					tmp1 = 0.0;
+					for(i=0; i<n; i++){
+						tmp1 += psi1[s*n+i]*psi1[t*n+i];
+					}
+					In[s*p11+t] = tmp1;
+				}
+			}
+			for (s = 1; s < p11; s++){
+				for (t = 0; t < s; t++){
+					In[s*p11+t] = In[t*p11+s];
+				}
+			}
+
+			MatrixInvSymmetric(In, p11);
+
+			for (s = 0; s < p; s++){
+				for (t = 0; t < p; t++){
+					In[s*p11+t] -= I0[s*p+t];
+				}
+			}
+
+			for (s = 0; s < p11; s++){
+				tmp1 = 0.0;
+				for(i=0; i<n; i++){
+					tmp1 += psi0[s*n+i];
+				}
+				psin[s] = tmp1;
+			}
+			tmp1 = 0.0;
+			for (s = 0; s < p11; s++){
+				for (t = 0; t < p11; t++){
+					tmp1 += psin[s]*In[s*p11+t]*psin[t];
+				}
+			}
+
+
+			if(tmp1 > Tn0){
+				Tn0 = tmp1;
+				maxk = k;
+			}
+
+			for(j=0; j< M; j++){
+				for (s = 0; s < p11; s++){
+					tmp1 = 0.0;
+					for(i=0; i<n; i++){
+						tmp1 += psi1[s*n+i]*G[j*n+i];
+					}
+					psin[s] = tmp1;
+				}
+				tmp1 = 0.0;
+				for (s = 0; s < p11; s++){
+					for (t = 0; t < p11; t++){
+						tmp1 += psin[s]*In[s*p11+t]*psin[t];
+					}
+				}
+
+				if(tmp1 > Tns[j]){
+					Tns[j] = tmp1;
+				}
+			}
+
+		}
+	}
+
+	for(j=0; j< M; j++){
+		if(Tn0<=Tns[j]){
+			count++;
+		}
+	}
+	pvals[0] = 1.0*count/M;
+
+	count = 0;
+	loglokl1 -= loglokl0;
+	for(j=0; j< M; j++){
+		if(loglokl1<=Tns[j]){
+			count++;
+		}
+	}
+	pvals[1] = 1.0*count/M;
+	for(j=0; j<p3; j++){
+		thetahat[j] = theta[maxk*p3 + j];
+	}
+
+	free(subg);
+	free(alpha0);
+	free(weight);
+	free(resids);
+	free(Tns);
+	free(psi0);
+	free(psi1);
+	free(psi2);
+	free(psin);
+	free(C11);
+	free(I0);
+	free(In);
+}
+
+SEXP _Quantile_SLR(SEXP Y, SEXP tX, SEXP X, SEXP Z, SEXP THETA, SEXP G, SEXP DIMs, SEXP PARAMS){
+	int n, p1, p2, p3, K, M, maxstep;
+	double tol, tau;
+	n 		= INTEGER(DIMs)[0];
+	p1		= INTEGER(DIMs)[1];
+	p2 		= INTEGER(DIMs)[2];
+	p3 		= INTEGER(DIMs)[3];
+	K 		= INTEGER(DIMs)[4];
+	M 		= INTEGER(DIMs)[5];
+	maxstep = INTEGER(DIMs)[6];
+
+	tau 	= REAL(PARAMS)[0];
+	tol		= REAL(PARAMS)[1];
+
+	SEXP rpvals, rthetahat, list, list_names;
+  	PROTECT(rpvals 		= allocVector(REALSXP, 	2));
+	PROTECT(rthetahat	= allocVector(REALSXP, 	p3));
+	PROTECT(list 		= allocVector(VECSXP, 	2));
+	PROTECT(list_names 	= allocVector(STRSXP, 	2));
+
+	Quantile_SLR(REAL(rpvals), REAL(Y), REAL(tX), REAL(X), REAL(Z), tau, REAL(THETA), REAL(G), REAL(rthetahat),
+			n, p1, p2, p3, K, M, maxstep, tol);
+
+	SET_STRING_ELT(list_names, 	0,	mkChar("pvals"));
+	SET_STRING_ELT(list_names, 	1,	mkChar("theta"));
+	SET_VECTOR_ELT(list, 		0, 	rpvals);
+	SET_VECTOR_ELT(list, 		1, 	rthetahat);
+	setAttrib(list, R_NamesSymbol, 	list_names);
+
+	UNPROTECT(4);
+	return list;
+}
+
+
 //-------------- Double Robust --------------------------------
 void EstLogisticR(double *beta, double *residual, double *x, double *y, int n, int p, int maxstep, double eps){
 	int i,j,k, step=0;
