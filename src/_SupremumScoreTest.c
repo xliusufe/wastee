@@ -524,7 +524,7 @@ SEXP _STT_Quantile_bstr(SEXP Y, SEXP tX, SEXP X, SEXP Z, SEXP THETA, SEXP G, SEX
 	K 		= INTEGER(DIMs)[4];
 	M 		= INTEGER(DIMs)[5];
 	maxIter = INTEGER(DIMs)[6];
-	type 	= INTEGER(DIMs)[6];
+	type 	= INTEGER(DIMs)[7];
 
 	tau		= REAL(PARAMs)[0];
 	h 		= REAL(PARAMs)[1];
